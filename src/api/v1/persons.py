@@ -4,8 +4,8 @@ from typing import Optional
 from core.paginator import Paginator
 from core.utils.translation import gettext_lazy as _
 from fastapi import APIRouter, Depends, HTTPException
-from models.person import (PersonDetailsResponseModel, PersonElasticModel,
-                           PersonFilmPagination, PersonPagination)
+from models.person import (PersonDetailsResponseModel, PersonFilmPagination,
+                           PersonPagination)
 from services.persons import PersonService, get_person_service
 
 from .utils.base import SearchQuery
@@ -30,7 +30,8 @@ async def search(
         'page[number]': paginator.page_number,
     }
 
-    objects = await obj_service.get_list(params)
+    obj_service.paginator = paginator
+    objects: Optional[dict] = await obj_service.list(params)
     if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('persons_not_found'))
@@ -47,19 +48,11 @@ async def details(
     person_id: str,
     obj_service: PersonService = Depends(get_person_service)
 ) -> PersonDetailsResponseModel:
-    obj = await obj_service.get_by_id(id=person_id, model=PersonElasticModel)
+    obj = await obj_service.retrieve(person_id)
     if not obj:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('person_not_found'))
-    return PersonDetailsResponseModel(
-        id=obj.id,
-        full_name=obj.full_name,
-        roles=obj.roles,
-        film_ids=obj.film_ids,
-        actor_film_ids=obj.actor_film_ids,
-        director_film_ids=obj.director_film_ids,
-        writer_film_ids=obj.writer_film_ids,
-    )
+    return obj
 
 
 @router.get('/{person_id}/film/',
@@ -73,8 +66,7 @@ async def person_films(
     obj_service: PersonService = Depends(get_person_service),
     paginator: Paginator = Depends(),
 ) -> PersonFilmPagination:
-    person = await obj_service.get_by_id(id=person_id,
-                                         model=PersonElasticModel)
+    person = await obj_service.retrieve(person_id)
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('person_not_found'))
@@ -84,7 +76,9 @@ async def person_films(
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
     }
-    films = await obj_service.get_films(person_id, params)
+
+    obj_service.paginator = paginator
+    films: Optional[dict] = await obj_service.list(params)
     return films
 
 
@@ -106,7 +100,8 @@ async def list(
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
     }
-    objects: Optional[dict] = await obj_service.get_list(params)
+    obj_service.paginator = paginator
+    objects: Optional[dict] = await obj_service.list(params)
     if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('persons_not_found'))

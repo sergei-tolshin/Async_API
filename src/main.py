@@ -9,10 +9,13 @@ from fastapi.responses import ORJSONResponse
 from api.v1 import films, genres, persons
 from core import config
 from core.logger import LOGGING
-from db import elastic, redis
+from db import elastic, redis, storage
 
 app = FastAPI(
-    title=config.PROJECT_NAME,
+    title='Read-only API для онлайн-кинотеатра',
+    description=("Информация о фильмах, жанрах и людях, "
+                 "участвовавших в создании произведения"),
+    version='1.0.0',
     docs_url='/api/openapi',
     openapi_url='/api/openapi.json',
     redoc_url='/api/redoc',
@@ -28,14 +31,14 @@ async def startup():
         maxsize=20
     )
 
-    elastic.es = AsyncElasticsearch(
-        hosts=[f'{config.ELASTIC_HOST}:{config.ELASTIC_PORT}'])
+    storage.db = elastic.ElasticStorage(client=AsyncElasticsearch(
+        hosts=[f'{config.ELASTIC_HOST}:{config.ELASTIC_PORT}']))
 
 
 @app.on_event('shutdown')
 async def shutdown():
     await redis.redis.close()
-    await elastic.es.close()
+    await storage.db.close()
 
 
 # Подключаем роутер к серверу, указав префикс /v1/films
