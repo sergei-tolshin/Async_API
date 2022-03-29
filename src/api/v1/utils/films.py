@@ -1,15 +1,28 @@
+from enum import Enum
 from typing import Optional
 
 from fastapi import Query
 
-DEFAULT_SORT_ORDER = '-imdb_rating'
+
+class FilmSortEnum(str, Enum):
+    """Варианты сортировки"""
+    imdb_rating_asc: str = 'imdb_rating'
+    imdb_rating_desc: str = '-imdb_rating'
 
 
 class Sort:
     """Добавление сортировки в параметры запроса"""
 
-    def __init__(self, sort: str = DEFAULT_SORT_ORDER):
-        self.sort_params = sort
+    def __init__(
+        self,
+        sort: FilmSortEnum = Query(
+            FilmSortEnum.imdb_rating_desc,
+            title='Сортировка',
+            description='Сортирует по возрастанию и убыванию',
+            alias='sort',
+        ),
+    ) -> None:
+        self.sort = (sort,)
 
 
 class Filter:

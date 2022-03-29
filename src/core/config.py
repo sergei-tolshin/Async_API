@@ -17,7 +17,7 @@ REDIS_HOST = os.getenv('REDIS_HOST', '127.0.0.1')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
 # Время хранения кэша 5 минут
-CACHE_EXPIRE_IN_SECONDS = 60 * 5
+CACHE_EXPIRE_IN_SECONDS = 20
 
 # Настройки Elasticsearch
 ELASTIC_HOST = os.getenv('ELASTIC_HOST', '127.0.0.1')

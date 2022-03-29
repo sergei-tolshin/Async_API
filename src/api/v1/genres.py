@@ -4,8 +4,7 @@ from typing import Optional
 from core.paginator import Paginator
 from core.utils.translation import gettext_lazy as _
 from fastapi import APIRouter, Depends, HTTPException
-from models.genre import (GenreDetailsResponseModel, GenreElasticModel,
-                          GenrePagination)
+from models.genre import GenreDetailsResponseModel, GenrePagination
 from services.genres import GenreService, get_genre_service
 
 from .utils.genres import Sort
@@ -23,15 +22,11 @@ async def details(
     genre_id: str,
     obj_service: GenreService = Depends(get_genre_service)
 ) -> GenreDetailsResponseModel:
-    obj = await obj_service.get_by_id(id=genre_id, model=GenreElasticModel)
+    obj = await obj_service.retrieve(genre_id)
     if not obj:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('genre_not_found'))
-    return GenreDetailsResponseModel(
-        id=obj.id,
-        name=obj.name,
-        description=obj.description
-    )
+    return obj
 
 
 @router.get('/',
@@ -50,7 +45,8 @@ async def list(
         'page[number]': paginator.page_number,
         'sort': sort.sort,
     }
-    objects: Optional[dict] = await obj_service.get_list(params)
+    obj_service.paginator = paginator
+    objects: Optional[dict] = await obj_service.list(params)
     if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('genres_not_found'))

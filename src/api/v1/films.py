@@ -1,11 +1,10 @@
 from http import HTTPStatus
-from typing import List
-from uuid import UUID
+from typing import Optional
 
 from core.paginator import Paginator
 from core.utils.translation import gettext_lazy as _
 from fastapi import APIRouter, Depends, HTTPException
-from models.film import FilmResponseModel
+from models.film import FilmDetailsResponseModel, FilmPagination
 from services.films import FilmService, get_film_service
 
 from .utils.base import SearchQuery
@@ -14,58 +13,74 @@ from .utils.films import Filter, Sort
 router = APIRouter()
 
 
-@router.get('/', response_model=List[FilmResponseModel],
-            response_model_include={'id', 'title', 'imdb_rating'})
-async def list_films(film_service: FilmService = Depends(get_film_service),
-                     paginator: Paginator = Depends(),
-                     sort: Sort = Depends(),
-                     _filter: Filter = Depends()) -> List[FilmResponseModel]:
-
-    query_params = {
-        'sort': sort.sort_params,
-        'filter[genre]': _filter.filter,
-        'page[size]': paginator.page_size,
-        'page[number]': paginator.page_number,
-    }
-
-    films = await film_service.get_films(query_params)
-    if not films:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail=_('films_not_found'))
-
-    return (FilmResponseModel(**film.dict()) for film in films)
-
-
-@router.get('/search', response_model=List[FilmResponseModel],
-            response_model_include={'id', 'title', 'imdb_rating'})
+@router.get('/search',
+            response_model=FilmPagination,
+            summary='Поиск по фильмам',
+            description='Поиск по фильмам с постраничным разбиением',
+            )
 async def search_films(
-    film_service: FilmService = Depends(get_film_service),
+    obj_service: FilmService = Depends(get_film_service),
+    query: SearchQuery = Depends(),
     paginator: Paginator = Depends(),
-    query: SearchQuery = Depends()
-) -> List[FilmResponseModel]:
+) -> FilmPagination:
 
-    query_params = {
+    params = {
+        'search_text': query.search_text,
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
-        'query': query.search_text
     }
-
-    films = await film_service.get_films(query_params)
-    if not films:
+    obj_service.paginator = paginator
+    objects: Optional[dict] = await obj_service.list(params)
+    if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('films_not_found'))
 
-    return (FilmResponseModel(**film.dict()) for film in films)
+    return objects
 
 
-@router.get('/{film_id}', response_model=FilmResponseModel)
-async def film_details(
-    film_id: UUID,
-    film_service: FilmService = Depends(get_film_service)
-) -> FilmResponseModel:
-    film = await film_service.get_by_id(film_id)
-    if not film:
+@router.get('/{film_id}',
+            response_model=FilmDetailsResponseModel,
+            summary='Подробная информация о фильме',
+            description='Вывод подробной информации о фильме',
+            response_description=("uuid, название, описание, рейтинг, "
+                                  "актеры, режиссеры, сценаристы")
+            )
+async def details(
+    film_id: str,
+    obj_service: FilmService = Depends(get_film_service)
+) -> FilmDetailsResponseModel:
+    obj = await obj_service.retrieve(film_id)
+    if not obj:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('film_not_found'))
 
-    return FilmResponseModel(**film.dict())
+    return obj
+
+
+@router.get('/',
+            response_model=FilmPagination,
+            summary='Список фильмов',
+            description='Список фильмов с постраничным разбиением',
+            response_description='uuid, название, рейтинг'
+            )
+async def list(
+        obj_service: FilmService = Depends(get_film_service),
+        _filter: Filter = Depends(),
+        sort: Sort = Depends(),
+        paginator: Paginator = Depends(),
+) -> FilmPagination:
+
+    params: dict = {
+        'filter[genre]': _filter.filter,
+        'sort': sort.sort,
+        'page[size]': paginator.page_size,
+        'page[number]': paginator.page_number,
+    }
+
+    obj_service.paginator = paginator
+    objects: Optional[dict] = await obj_service.list(params)
+    if not objects:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
+                            detail=_('films_not_found'))
+
+    return objects
