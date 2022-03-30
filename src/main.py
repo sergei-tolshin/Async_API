@@ -31,7 +31,7 @@ async def startup():
         minsize=10,
         maxsize=20
     )
-    cache.cache_provider = redis.RedisCacheProvider(cache_client)
+    cache.cache = redis.RedisCache(cache_client)
 
     storage.db = elastic.ElasticStorage(client=AsyncElasticsearch(
         hosts=[f'{config.ELASTIC_HOST}:{config.ELASTIC_PORT}']))
@@ -39,7 +39,7 @@ async def startup():
 
 @app.on_event('shutdown')
 async def shutdown():
-    await cache.cache_provider.close()
+    await cache.cache.close()
     await storage.db.close()
 
 

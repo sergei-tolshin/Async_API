@@ -5,11 +5,11 @@ from typing import Optional, Union
 class AbstractCache(ABC):
 
     @abstractmethod
-    async def put_in_cache(self, key: str, data: Union[str, bytes]) -> None:
+    async def set(self, key: str, data: Union[str, bytes]) -> None:
         pass
 
     @abstractmethod
-    async def get_from_cache(self, key: str) -> Union[str, bytes]:
+    async def get(self, key: str) -> Union[str, bytes]:
         pass
 
     @abstractmethod
@@ -21,8 +21,8 @@ class AbstractCache(ABC):
         pass
 
 
-cache_provider: Optional[AbstractCache] = None
+cache: Optional[AbstractCache] = None
 
 
-async def get_cache_provider() -> AbstractCache:
-    return cache_provider
+async def get_cache() -> AbstractCache:
+    return cache
