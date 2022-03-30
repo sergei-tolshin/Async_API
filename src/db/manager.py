@@ -3,12 +3,12 @@ from typing import Optional
 import orjson
 from elasticsearch import NotFoundError
 
-from db.cache import get_cache_provider, BaseCacheProvider
+from db.cache import get_cache_provider, AbstractCache
 from db.storage import get_storage, AbstractStorage
 
 
 class DataManager:
-    def __init__(self, cache_provider: BaseCacheProvider,
+    def __init__(self, cache_provider: AbstractCache,
                  storage: AbstractStorage):
         self.cache_provider = cache_provider
         self.storage = storage

@@ -5,10 +5,10 @@ import orjson
 from aioredis import Redis
 from core import config
 
-from db.cache import BaseCacheProvider
+from db.cache import AbstractCache
 
 
-class RedisCacheProvider(BaseCacheProvider):
+class RedisCacheProvider(AbstractCache):
 
     def __init__(self, redis: Redis):
         self.redis = redis

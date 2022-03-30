@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 
 
-class BaseCacheProvider(ABC):
+class AbstractCache(ABC):
 
     @abstractmethod
     async def put_in_cache(self, key: str, data: Union[str, bytes]) -> None:
@@ -21,8 +21,8 @@ class BaseCacheProvider(ABC):
         pass
 
 
-cache_provider: Optional[BaseCacheProvider] = None
+cache_provider: Optional[AbstractCache] = None
 
 
-async def get_cache_provider() -> BaseCacheProvider:
+async def get_cache_provider() -> AbstractCache:
     return cache_provider
