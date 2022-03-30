@@ -1,22 +1,22 @@
-import abc
+from abc import ABC, abstractmethod
 from typing import Optional, Union
 
 
-class BaseCacheProvider(abc.ABC):
+class BaseCacheProvider(ABC):
 
-    @abc.abstractmethod
+    @abstractmethod
     async def put_in_cache(self, key: str, data: Union[str, bytes]) -> None:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     async def get_from_cache(self, key: str) -> Union[str, bytes]:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     async def get_key(self, prefix: str, query: Union[str, dict]) -> str:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     async def close(self) -> None:
         pass
 
