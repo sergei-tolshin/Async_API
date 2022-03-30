@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from core import config
 from db.manager import DataManager, get_data_manager
 from fastapi import Depends
 from models.film import FilmElasticModel
@@ -9,7 +10,7 @@ from .mixins import ListModelMixin, RetrieveModelMixin
 
 
 class FilmService(RetrieveModelMixin, ListModelMixin, BaseService):
-    index = 'movies'
+    index = config.ELASTIC_INDEX['films']
     model = FilmElasticModel
     search_fields = ['title', 'description']
 

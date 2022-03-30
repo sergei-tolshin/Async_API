@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from core import config
 from db.manager import DataManager, get_data_manager
 from fastapi import Depends
 from models.person import PersonElasticModel
@@ -9,7 +10,7 @@ from .mixins import ListModelMixin, RetrieveModelMixin
 
 
 class PersonService(RetrieveModelMixin, ListModelMixin, BaseService):
-    index = 'persons'
+    index = config.ELASTIC_INDEX['persons']
     model = PersonElasticModel
     search_fields = ['full_name']
 

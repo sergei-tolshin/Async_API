@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from core import config
 from db.manager import DataManager, get_data_manager
 from fastapi import Depends
 from models.genre import GenreElasticModel
@@ -9,7 +10,7 @@ from .mixins import ListModelMixin, RetrieveModelMixin
 
 
 class GenreService(RetrieveModelMixin, ListModelMixin, BaseService):
-    index = 'genres'
+    index = config.ELASTIC_INDEX['genres']
     model = GenreElasticModel
 
 
