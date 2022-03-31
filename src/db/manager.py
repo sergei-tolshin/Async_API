@@ -1,6 +1,5 @@
-import json
 from hashlib import sha256
-from typing import Optional
+from typing import Optional, Union
 
 import orjson
 from aioredis import Redis
@@ -8,18 +7,19 @@ from core import config
 from elasticsearch import NotFoundError
 
 from db.redis import get_redis
-from db.storage import get_storage, AbstractStorage
+from db.storage import AbstractStorage, get_storage
 
 
 class DataManager:
     def __init__(self, redis: Redis, storage: AbstractStorage):
         self.redis = redis
         self.storage = storage
+        self.request = None
 
-    def _hash_key(self, index: str, params: str) -> str:
+    def _hash_key(self, index: str, key: Union[str, dict]) -> str:
         # Формирует хеш ключа запроса
-        str_params = json.dumps(params)
-        hash = sha256(str_params.encode()).hexdigest()
+        key: bytes = orjson.dumps(key)
+        hash = sha256(key).hexdigest()
         return f'{index}:{hash}'
 
     async def get_object(self, index: str, id: str) -> Optional[dict]:
@@ -44,15 +44,19 @@ class DataManager:
         return orjson.loads(instance)
 
     async def search(self, index: str, query: dict):
-        queryset = await self.redis.get(self._hash_key(index, query)) or None
+        key = {
+            "path": self.request.url.path,
+            "params": dict(self.request.query_params.items())
+        }
+        queryset = await self.redis.get(self._hash_key(index, key)) or None
         if not queryset:
             try:
                 docs = await self.storage.search(**query)
                 hits = docs['hits']['hits']
                 count: int = int(docs.get('hits').get('total').get('value', 0))
                 objects = [hit['_source'] for hit in hits]
-                data: dict = {'count': count, 'obj': objects}
-                await self.redis.set(self._hash_key(index, query),
+                data: dict = {'count': count, 'results': objects}
+                await self.redis.set(self._hash_key(index, key),
                                      orjson.dumps(data),
                                      expire=config.CACHE_EXPIRE_IN_SECONDS)
                 return data

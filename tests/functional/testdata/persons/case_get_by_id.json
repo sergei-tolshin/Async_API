@@ -1,0 +1,25 @@
+{
+    "id": "82b7dffe-6254-4598-b6ef-5be747193946",
+    "full_name": "Alex Kurtzman",
+    "roles": [
+        "writer"
+    ],
+    "film_ids": [
+        "a9ee0b3f-ec56-4107-9b6d-0458dfa3f415",
+        "c9e1f6f0-4f1e-4a76-92ee-76c1942faa97",
+        "6ecc7a32-14a1-4da8-9881-bf81f0f09897",
+        "020adfa7-7251-4fb9-b6db-07b60664cb67",
+        "4af6c9c9-0be0-4864-b1e9-7f87dd59ee1f",
+        "cc397479-a5f8-488f-bd7f-7fbb94ec6e18"
+    ],
+    "actor_film_ids": [],
+    "director_film_ids": [],
+    "writer_film_ids": [
+        "a9ee0b3f-ec56-4107-9b6d-0458dfa3f415",
+        "c9e1f6f0-4f1e-4a76-92ee-76c1942faa97",
+        "6ecc7a32-14a1-4da8-9881-bf81f0f09897",
+        "020adfa7-7251-4fb9-b6db-07b60664cb67",
+        "4af6c9c9-0be0-4864-b1e9-7f87dd59ee1f",
+        "cc397479-a5f8-488f-bd7f-7fbb94ec6e18"
+    ]
+}
