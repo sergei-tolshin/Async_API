@@ -1,6 +1,7 @@
 import math
 from http import HTTPStatus
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from fastapi import HTTPException, Query
 from pydantic import BaseModel
@@ -13,8 +14,8 @@ class PaginationMixin(BaseModel):
     """Модель ответа API с пагинацией"""
     count: int
     total_pages: int
-    next: Optional[int] = None
-    previous: Optional[int] = None
+    next: Optional[str] = None
+    previous: Optional[str] = None
 
 
 class Paginator:
@@ -22,14 +23,24 @@ class Paginator:
 
     def __init__(
         self,
-        page_number: int = Query(None, alias='page[number]', ge=1),
+        page_number: int = Query(
+            None,
+            title='Номер страницы',
+            description='Номер страницы',
+            alias='page[number]',
+            ge=1),
         page_size: int = Query(
-            None, alias='page[size]', ge=1, le=config.MAX_PAGE_SIZE),
+            None,
+            title='Количество результатов на странице',
+            description='Количество результатов на странице',
+            alias='page[size]',
+            ge=1,
+            le=config.MAX_PAGE_SIZE),
     ) -> None:
         self.page_number = page_number or 1
         self.page_size = page_size or config.PAGE_SIZE
 
-    def get_paginated_response(self, queryset) -> dict:
+    def get_paginated_response(self, request, queryset) -> dict:
         next_page, previous_page = None, None
         if self.page_number > 1:
             previous_page = self.page_number - 1
@@ -44,10 +55,26 @@ class Paginator:
         if queryset['count'] == 0 and self.page_number > 1:
             raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                                 detail=_('Invalid page'))
+
+        next_page_url = self.get_page_url(request, next_page)
+        previous_page_url = self.get_page_url(request, previous_page)
+
         return {
             'count': queryset['count'],
             'total_pages': total_pages,
-            'next': next_page,
-            'previous': previous_page,
+            'next': next_page_url,
+            'previous': previous_page_url,
             'results': queryset['results'],
         }
+
+    def get_page_url(self, request, page):
+        if page is None:
+            return None
+
+        url = str(request.url)
+        url_parts = list(urlparse(url))
+        params = {'page[number]': page}
+        query = dict(parse_qsl(url_parts[4]))
+        query.update(params)
+        url_parts[4] = urlencode(query, safe='[]')
+        return urlunparse(url_parts)

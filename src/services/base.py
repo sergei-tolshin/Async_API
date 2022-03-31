@@ -32,8 +32,9 @@ class BaseService(AbstractService):
     search_fields: Optional[List] = []
 
     def __init__(self, data_manager: DataManager):
-        self.data_manager: DataManager = data_manager
+        self.request = None
         self.paginator = None
+        self.data_manager: DataManager = data_manager
 
     async def get_serializer(self, instance):
         serializer_class = self.model

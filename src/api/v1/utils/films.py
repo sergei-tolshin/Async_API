@@ -28,6 +28,12 @@ class Sort:
 class Filter:
     """Добавление фильтрации в параметры запроса"""
 
-    def __init__(self,
-                 _filter: Optional[str] = Query(None, alias='filter[genre]')):
+    def __init__(
+        self,
+        _filter: Optional[str] = Query(
+            None,
+            title='Фильтр',
+            description='Фильтрует по жанрам',
+            alias='filter[genre]')
+    ):
         self.filter = _filter
