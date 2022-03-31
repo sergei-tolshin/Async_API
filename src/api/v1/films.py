@@ -17,10 +17,11 @@ router = APIRouter()
             response_model=FilmPagination,
             summary='Поиск по фильмам',
             description='Поиск по фильмам с постраничным разбиением',
+            tags=['Фильмы']
             )
 async def search_films(
     request: Request,
-    obj_service: FilmService = Depends(get_film_service),
+    service: FilmService = Depends(get_film_service),
     query: SearchQuery = Depends(),
     paginator: Paginator = Depends(),
 ) -> FilmPagination:
@@ -29,9 +30,9 @@ async def search_films(
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
     }
-    obj_service.data_manager.request = request
-    obj_service.paginator = paginator
-    objects: Optional[dict] = await obj_service.list(params)
+    service.request = request
+    service.paginator = paginator
+    objects: Optional[dict] = await service.list(params)
     if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('films_not_found'))
@@ -44,15 +45,16 @@ async def search_films(
             summary='Подробная информация о фильме',
             description='Вывод подробной информации о фильме',
             response_description=("uuid, название, описание, рейтинг, "
-                                  "актеры, режиссеры, сценаристы")
+                                  "актеры, режиссеры, сценаристы"),
+            tags=['Фильмы']
             )
 async def details(
     request: Request,
     film_id: str,
-    obj_service: FilmService = Depends(get_film_service)
+    service: FilmService = Depends(get_film_service)
 ) -> FilmDetailsResponseModel:
-    obj_service.data_manager.request = request
-    obj = await obj_service.retrieve(film_id)
+    service.data_manager.request = request
+    obj = await service.retrieve(film_id)
     if not obj:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('film_not_found'))
@@ -63,12 +65,14 @@ async def details(
 @router.get('/',
             response_model=FilmPagination,
             summary='Список фильмов',
-            description='Список фильмов с постраничным разбиением',
-            response_description='uuid, название, рейтинг'
+            description=("Список фильмов с постраничным разбиением, "
+                         "фильтрацией по жанрам и сортировкой по рейтингу"),
+            response_description='uuid, название, рейтинг',
+            tags=['Фильмы']
             )
 async def list(
         request: Request,
-        obj_service: FilmService = Depends(get_film_service),
+        service: FilmService = Depends(get_film_service),
         _filter: Filter = Depends(),
         sort: Sort = Depends(),
         paginator: Paginator = Depends(),
@@ -79,9 +83,9 @@ async def list(
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
     }
-    obj_service.data_manager.request = request
-    obj_service.paginator = paginator
-    objects: Optional[dict] = await obj_service.list(params)
+    service.request = request
+    service.paginator = paginator
+    objects: Optional[dict] = await service.list(params)
     if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('films_not_found'))

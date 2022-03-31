@@ -11,7 +11,6 @@ class DataManager:
     def __init__(self, cache: AbstractCache, storage: AbstractStorage):
         self.cache = cache
         self.storage = storage
-        self.request = None
 
     async def get_object(self, index: str, id: str) -> Optional[dict]:
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
@@ -33,12 +32,12 @@ class DataManager:
                 return None
         return orjson.loads(instance)
 
-    async def search(self, index: str, query: dict):
-        request = {
-            "path": self.request.url.path,
-            "params": dict(self.request.query_params.items())
+    async def search(self, request, index: str, query: dict):
+        params = {
+            "path": request.url.path,
+            "params": dict(request.query_params.items())
         }
-        key = await self.cache.get_key(index, request)
+        key = await self.cache.get_key(index, params)
         queryset = await self.cache.get(key) or None
         if not queryset:
             try:

@@ -16,15 +16,16 @@ router = APIRouter()
             response_model=GenreDetailsResponseModel,
             summary='Подробная информация о жанре',
             description='Вывод подробной информации о жанре',
-            response_description='uuid, название, описание'
+            response_description='uuid, название, описание',
+            tags=['Жанры']
             )
 async def details(
     request: Request,
     genre_id: str,
-    obj_service: GenreService = Depends(get_genre_service)
+    service: GenreService = Depends(get_genre_service)
 ) -> GenreDetailsResponseModel:
-    obj_service.data_manager.request = request
-    obj = await obj_service.retrieve(genre_id)
+    service.data_manager.request = request
+    obj = await service.retrieve(genre_id)
     if not obj:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('genre_not_found'))
@@ -34,23 +35,25 @@ async def details(
 @router.get('/',
             response_model=GenrePagination,
             summary='Список жанров',
-            description='Список жанров с постраничным разбиением',
-            response_description='uuid, название'
+            description=("Список жанров с постраничным разбиением "
+                         "и сортировкой по названию"),
+            response_description='uuid, название',
+            tags=['Жанры']
             )
 async def list(
     request: Request,
-    obj_service: GenreService = Depends(get_genre_service),
-    paginator: Paginator = Depends(),
+    service: GenreService = Depends(get_genre_service),
     sort: Sort = Depends(),
+    paginator: Paginator = Depends(),
 ) -> GenrePagination:
     params: dict = {
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
         'sort': sort.sort,
     }
-    obj_service.data_manager.request = request
-    obj_service.paginator = paginator
-    objects: Optional[dict] = await obj_service.list(params)
+    service.request = request
+    service.paginator = paginator
+    objects: Optional[dict] = await service.list(params)
     if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail=_('genres_not_found'))
