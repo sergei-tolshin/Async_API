@@ -3,7 +3,7 @@ from typing import Optional
 
 from core.paginator import Paginator
 from core.utils.translation import gettext_lazy as _
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from models.genre import GenreDetailsResponseModel, GenrePagination
 from services.genres import GenreService, get_genre_service
 
@@ -19,9 +19,11 @@ router = APIRouter()
             response_description='uuid, название, описание'
             )
 async def details(
+    request: Request,
     genre_id: str,
     obj_service: GenreService = Depends(get_genre_service)
 ) -> GenreDetailsResponseModel:
+    obj_service.data_manager.request = request
     obj = await obj_service.retrieve(genre_id)
     if not obj:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
@@ -36,6 +38,7 @@ async def details(
             response_description='uuid, название'
             )
 async def list(
+    request: Request,
     obj_service: GenreService = Depends(get_genre_service),
     paginator: Paginator = Depends(),
     sort: Sort = Depends(),
@@ -45,6 +48,7 @@ async def list(
         'page[number]': paginator.page_number,
         'sort': sort.sort,
     }
+    obj_service.data_manager.request = request
     obj_service.paginator = paginator
     objects: Optional[dict] = await obj_service.list(params)
     if not objects:

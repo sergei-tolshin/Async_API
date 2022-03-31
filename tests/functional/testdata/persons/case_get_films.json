@@ -1,0 +1,39 @@
+{
+    "id": "2ede5838-9b45-4ba0-a369-dc7acce459bc",
+    "full_name": "Samuli Torssonen",
+    "roles": [
+        "writer",
+        "actor",
+        "director"
+    ],
+    "film_ids": [
+        "2269210f-9039-454c-ac8b-cf3d5ded9dfc",
+        "e83a8d14-2ebf-4aa6-87b4-4cf2eae2840d",
+        "28b7b1ac-8834-45b7-a02e-528d48fe476c",
+        "58fd971d-4550-4164-8428-06f9a19f93cc",
+        "2bb5d323-0e56-4f86-ae38-34c63fffb7bf",
+        "d7654b82-00d7-405b-a83c-05804444b645"
+    ],
+    "actor_film_ids": [
+        "e83a8d14-2ebf-4aa6-87b4-4cf2eae2840d",
+        "28b7b1ac-8834-45b7-a02e-528d48fe476c",
+        "58fd971d-4550-4164-8428-06f9a19f93cc",
+        "2269210f-9039-454c-ac8b-cf3d5ded9dfc",
+        "2bb5d323-0e56-4f86-ae38-34c63fffb7bf",
+        "d7654b82-00d7-405b-a83c-05804444b645"
+    ],
+    "director_film_ids": [
+        "2bb5d323-0e56-4f86-ae38-34c63fffb7bf",
+        "28b7b1ac-8834-45b7-a02e-528d48fe476c",
+        "e83a8d14-2ebf-4aa6-87b4-4cf2eae2840d",
+        "2269210f-9039-454c-ac8b-cf3d5ded9dfc"
+    ],
+    "writer_film_ids": [
+        "2269210f-9039-454c-ac8b-cf3d5ded9dfc",
+        "28b7b1ac-8834-45b7-a02e-528d48fe476c",
+        "58fd971d-4550-4164-8428-06f9a19f93cc",
+        "2bb5d323-0e56-4f86-ae38-34c63fffb7bf",
+        "d7654b82-00d7-405b-a83c-05804444b645",
+        "e83a8d14-2ebf-4aa6-87b4-4cf2eae2840d"
+    ]
+}

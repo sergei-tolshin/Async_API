@@ -33,6 +33,7 @@ class BaseService(AbstractService):
 
     def __init__(self, data_manager: DataManager):
         self.data_manager: DataManager = data_manager
+        self.paginator = None
 
     async def get_serializer(self, instance):
         serializer_class = self.model

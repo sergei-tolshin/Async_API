@@ -3,7 +3,7 @@ from typing import Optional
 
 from core.paginator import Paginator
 from core.utils.translation import gettext_lazy as _
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from models.person import (PersonDetailsResponseModel, PersonFilmPagination,
                            PersonPagination)
 from services.persons import PersonService, get_person_service
@@ -20,6 +20,7 @@ router = APIRouter()
             description='Поиск по персонажам с постраничным разбиением',
             )
 async def search(
+    request: Request,
     obj_service: PersonService = Depends(get_person_service),
     query: SearchQuery = Depends(),
     paginator: Paginator = Depends(),
@@ -29,7 +30,7 @@ async def search(
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
     }
-
+    obj_service.data_manager.request = request
     obj_service.paginator = paginator
     objects: Optional[dict] = await obj_service.list(params)
     if not objects:
@@ -45,9 +46,11 @@ async def search(
             response_description='uuid, имя, роль, фильмы'
             )
 async def details(
+    request: Request,
     person_id: str,
     obj_service: PersonService = Depends(get_person_service)
 ) -> PersonDetailsResponseModel:
+    obj_service.data_manager.request = request
     obj = await obj_service.retrieve(person_id)
     if not obj:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
@@ -62,10 +65,12 @@ async def details(
             response_description='uuid, название, рейтинг'
             )
 async def person_films(
+    request: Request,
     person_id: str,
     obj_service: PersonService = Depends(get_person_service),
     paginator: Paginator = Depends(),
 ) -> PersonFilmPagination:
+    obj_service.data_manager.request = request
     person = await obj_service.retrieve(person_id)
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
@@ -89,10 +94,14 @@ async def person_films(
             response_description='uuid, имя, роли'
             )
 async def list(
+    request: Request,
     obj_service: PersonService = Depends(get_person_service),
     _filter: Filter = Depends(),
     paginator: Paginator = Depends(),
 ) -> PersonPagination:
+    obj_service.data_manager.request = request
+    obj_service.paginator = paginator
+
     query_body = {'query': {'term': {'roles': _filter.filter}}
                   } if _filter.filter else None
     params: dict = {
@@ -100,7 +109,7 @@ async def list(
         'page[size]': paginator.page_size,
         'page[number]': paginator.page_number,
     }
-    obj_service.paginator = paginator
+
     objects: Optional[dict] = await obj_service.list(params)
     if not objects:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,

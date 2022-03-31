@@ -1,6 +1,8 @@
 import os
-import orjson
 from logging import config as logging_config
+from pathlib import Path
+
+import orjson
 
 from core.logger import LOGGING
 
@@ -12,6 +14,7 @@ PROJECT_NAME = os.getenv('PROJECT_NAME', 'movies')
 
 # Количество результатов на странице
 PAGE_SIZE = int(os.getenv('PAGE_SIZE', 10))
+MAX_PAGE_SIZE = int(os.getenv('PAGE_SIZE', 100))
 
 # Настройки Redis
 REDIS_HOST = os.getenv('REDIS_HOST', '127.0.0.1')
@@ -29,7 +32,7 @@ ELASTIC_INDEX = orjson.loads(os.getenv(
 ))
 
 # Корень проекта
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Локализация
 LANGUAGE = os.getenv('LANGUAGE', 'ru')
