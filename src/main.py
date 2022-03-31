@@ -9,7 +9,8 @@ from fastapi.responses import ORJSONResponse
 from api.v1 import films, genres, persons
 from core import config
 from core.logger import LOGGING
-from db import elastic, redis, storage
+from db import cache, elastic, redis, storage
+
 
 app = FastAPI(
     title='Read-only API для онлайн-кинотеатра',
@@ -25,11 +26,12 @@ app = FastAPI(
 
 @app.on_event('startup')
 async def startup():
-    redis.redis = await aioredis.create_redis_pool(
+    cache_client = await aioredis.create_redis_pool(
         (config.REDIS_HOST, config.REDIS_PORT),
         minsize=10,
         maxsize=20
     )
+    cache.cache = redis.RedisCache(cache_client)
 
     storage.db = elastic.ElasticStorage(client=AsyncElasticsearch(
         hosts=[f'{config.ELASTIC_HOST}:{config.ELASTIC_PORT}']))
@@ -37,7 +39,7 @@ async def startup():
 
 @app.on_event('shutdown')
 async def shutdown():
-    await redis.redis.close()
+    await cache.cache.close()
     await storage.db.close()
 
 
