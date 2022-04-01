@@ -1,24 +1,25 @@
 import asyncio
-import logging
+import os
 
 import aioredis
-import backoff
-
-logging.getLogger('backoff').addHandler(logging.StreamHandler())
 
 
-@backoff.on_predicate(backoff.fibo, max_value=10)
-@backoff.on_exception(backoff.expo, ConnectionRefusedError, max_time=300)
-async def wait_for_redis():
-    redis_client = await aioredis.create_redis_pool(
-        ('127.0.0.1', 6379), minsize=10, maxsize=20
-    )
-    if await redis_client.ping():
-        redis_client.close()
-        await redis_client.wait_closed()
-        return True
+REDIS_HOST: str = os.getenv('REDIS_HOST', '127.0.0.1')
+REDIS_PORT: int = int(os.getenv('REDIS_PORT', 6379))
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(wait_for_redis())
-loop.close()
+async def main():
+    while True:
+        try:
+            redis = await aioredis.create_redis(f'redis://{REDIS_HOST}:{REDIS_PORT}')
+            redis.close()
+            await redis.wait_closed()
+            break
+        except:
+            await asyncio.sleep(1)
+
+    print('close')
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
