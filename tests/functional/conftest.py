@@ -42,6 +42,7 @@ async def cache():
         maxsize=20)
     await client.flushdb()
     yield client
+    await client.flushdb()
     client.close()
     await client.wait_closed()
 
@@ -57,7 +58,7 @@ async def session():
 def make_get_request(session):
     async def inner(path: str, params: dict = None) -> HTTPResponse:
         params = params or {}
-        url = build_url(config.SERVICE_URL, config.API_URL, path)
+        url = build_url(config.SERVICE_URL, path)
         async with session.get(url, params=params) as response:
             return HTTPResponse(
                 body=await response.json(),
@@ -67,11 +68,10 @@ def make_get_request(session):
     return inner
 
 
-# https://stackoverflow.com/questions/50329629/how-to-access-a-json-filetest-data-like-config-json-in-conftest-py
 @pytest.fixture
-def read_case(request):
+def read_case():
     async def inner(file_name: str) -> dict:
-        file = Path(config.BASE_DIR, config.TEST_DATA_PATH, file_name)
+        file = Path(config.TEST_DATA_PATH, file_name)
         with file.open(encoding='utf-8') as fp:
             case_data = json.load(fp)
         return case_data

@@ -1,0 +1,58 @@
+{
+    "count": 26,
+    "total_pages": 3,
+    "next": "http://localhost:8000/api/v1/films/search?query=Lego&page[number]=2",
+    "previous": null,
+    "results": [
+        {
+            "id": "73ecd1e6-6326-405a-b51b-69008f383b72",
+            "title": "Lego Star Wars: The Complete Saga",
+            "imdb_rating": 8.5
+        },
+        {
+            "id": "daae47e4-cbd0-4ffd-a150-55201b357d5b",
+            "title": "Lego Star Wars: The Video Game",
+            "imdb_rating": 8.2
+        },
+        {
+            "id": "b8dfb15f-3060-4387-84a6-7ba3383589fe",
+            "title": "Lego Star Wars: The Yoda Chronicles - Secret Plans Are Revealed",
+            "imdb_rating": 6.5
+        },
+        {
+            "id": "e99620fb-11bb-481b-8702-a14efa6bb0ef",
+            "title": "Lego Star Wars II: The Original Trilogy",
+            "imdb_rating": 8.4
+        },
+        {
+            "id": "d4b010a5-2648-4850-b15d-307658020923",
+            "title": "Lego Star Wars: Revenge of the Brick",
+            "imdb_rating": 6.1
+        },
+        {
+            "id": "b5709473-9df9-4c67-b1d5-7e1980e5ba2e",
+            "title": "Star Wars Episode V 1/2: The Han Solo Affair",
+            "imdb_rating": 5.9
+        },
+        {
+            "id": "5d62b55c-1ed5-4563-ae80-10c4baa21a36",
+            "title": "Lego Star Wars III: The Clone Wars",
+            "imdb_rating": 7.5
+        },
+        {
+            "id": "87677f57-63bc-4498-a39c-4985a3b37643",
+            "title": "Lego Star Wars: The Yoda Chronicles",
+            "imdb_rating": 7.5
+        },
+        {
+            "id": "ee580283-32db-4181-9f11-bd9d171944c3",
+            "title": "Lego Star Wars: The Force Awakens",
+            "imdb_rating": 8.4
+        },
+        {
+            "id": "3bea8791-3917-4a76-9e96-b5131d6192f5",
+            "title": "Garrincha: Lonely Star",
+            "imdb_rating": 5.2
+        }
+    ]
+}
