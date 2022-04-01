@@ -1,6 +1,6 @@
 FROM python:3.9-slim-buster
 
-RUN apt-get update -y && apt-get upgrade
+RUN apt-get update -y && apt-get upgrade -y
 
 WORKDIR /api
 
@@ -9,6 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 COPY ./src .
+COPY ./tests/functional ../tests/functional
 
 ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh .
 
