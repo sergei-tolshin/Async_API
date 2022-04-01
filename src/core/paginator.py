@@ -40,7 +40,7 @@ class Paginator:
         self.page_number = page_number or 1
         self.page_size = page_size or config.PAGE_SIZE
 
-    def get_paginated_response(self, request, queryset) -> dict:
+    async def get_paginated_response(self, request, queryset) -> dict:
         next_page, previous_page = None, None
         if self.page_number > 1:
             previous_page = self.page_number - 1
@@ -56,8 +56,8 @@ class Paginator:
             raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                                 detail=_('Invalid page'))
 
-        next_page_url = self.get_page_url(request, next_page)
-        previous_page_url = self.get_page_url(request, previous_page)
+        next_page_url = await self.get_page_url(request, next_page)
+        previous_page_url = await self.get_page_url(request, previous_page)
 
         return {
             'count': queryset['count'],
@@ -67,7 +67,7 @@ class Paginator:
             'results': queryset['results'],
         }
 
-    def get_page_url(self, request, page):
+    async def get_page_url(self, request, page):
         if page is None:
             return None
 
