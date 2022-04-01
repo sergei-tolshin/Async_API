@@ -10,7 +10,8 @@ class ListModelMixin:
         if not queryset:
             return None
 
-        page = self.paginator.get_paginated_response(self.request, queryset)
+        page = await self.paginator.get_paginated_response(self.request,
+                                                           queryset)
         return page
 
 
