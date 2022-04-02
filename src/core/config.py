@@ -14,14 +14,14 @@ PROJECT_NAME = os.getenv('PROJECT_NAME', 'movies')
 
 # Количество результатов на странице
 PAGE_SIZE = int(os.getenv('PAGE_SIZE', 10))
-MAX_PAGE_SIZE = int(os.getenv('PAGE_SIZE', 100))
+MAX_PAGE_SIZE = int(os.getenv('MAX_PAGE_SIZE', 100))
 
 # Настройки Redis
 REDIS_HOST = os.getenv('REDIS_HOST', '127.0.0.1')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
 # Время хранения кэша 5 минут
-CACHE_EXPIRE_IN_SECONDS = int(os.getenv('CACHE_EXPIRE_IN_SECONDS', 30))
+CACHE_EXPIRE_IN_SECONDS = int(os.getenv('CACHE_EXPIRE_IN_SECONDS', 300))
 
 # Настройки Elasticsearch
 ELASTIC_HOST = os.getenv('ELASTIC_HOST', '127.0.0.1')
