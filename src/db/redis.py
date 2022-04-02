@@ -3,16 +3,26 @@ from typing import Optional, Union
 
 import backoff
 import orjson
-from aioredis import Redis, RedisError
+from aioredis import Redis, RedisError, create_redis_pool
 from core import config
 
 from db.cache import AbstractCache
 
 
 class RedisCache(AbstractCache):
+    @classmethod
+    @backoff.on_exception(backoff.expo, ConnectionRefusedError)
+    async def create(cls, address, minsize=10, maxsize=20):
+        self = RedisCache()
+        self.redis = await create_redis_pool(
+            address,
+            minsize=minsize,
+            maxsize=maxsize
+        )
+        return self
 
-    def __init__(self, redis: Redis):
-        self.redis = redis
+    def __init__(self):
+        self.redis: Redis = None
 
     @backoff.on_exception(backoff.expo, RedisError)
     async def set(self, key: str, data: Union[str, bytes]) -> None:
