@@ -6,8 +6,9 @@ from pathlib import Path
 import aiohttp
 import aioredis
 import pytest
-from elasticsearch import AsyncElasticsearch
+from elasticsearch import AsyncElasticsearch, helpers
 from multidict import CIMultiDictProxy
+from pydantic import BaseModel
 
 from .settings import config
 from .utils.utils import build_url
@@ -76,3 +77,30 @@ def read_case():
             case_data = json.load(fp)
         return case_data
     return inner
+
+
+@pytest.fixture
+async def bulk(es_client):
+
+    async def _bulk(index: str,
+                    objects: list[BaseModel],
+                    op_type: str = 'index'):
+
+        actions = [
+            {
+                "_index": index,
+                "_id": obj.id,
+                # default value for op_type 'index',
+                # other values may be: [create, delete]
+                # for update not working with this query
+                "_op_type": op_type,
+                "_source": obj.dict()
+            }
+            for obj in objects
+        ]
+
+        await helpers.async_bulk(client=es_client, actions=actions,
+                                 raise_on_error=False, stats_only=True,
+                                 refresh=True)
+
+    return _bulk
