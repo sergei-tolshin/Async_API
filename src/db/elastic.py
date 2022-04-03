@@ -18,12 +18,12 @@ class ElasticStorage(AbstractStorage):
         self.client: AsyncElasticsearch = None
 
     @backoff.on_exception(backoff.expo,
-                          (ElasticsearchException, ConnectionError))
+                          (ConnectionError))
     async def get(self, index: str, id: str) -> dict:
         return await self.client.get(index, id)
 
     @backoff.on_exception(backoff.expo,
-                          (ElasticsearchException, ConnectionError))
+                          (ConnectionError))
     async def search(self, **query) -> dict:
         return await self.client.search(**query)
 
