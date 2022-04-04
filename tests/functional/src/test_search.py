@@ -32,7 +32,7 @@ async def films_index(es_client):
 
 
 @pytest.mark.usefixtures('persons_index', 'films_index')
-class TestPersonsAPI:
+class TestSearchAPI:
     @pytest.fixture(autouse=True)
     async def clear_storage(self, es_client):
         query = {"query": {"match_all": {}}}
