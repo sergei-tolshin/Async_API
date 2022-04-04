@@ -33,7 +33,7 @@ class TestGenreAPI:
         'sort': 'name',
         'page[size]': 10,
         'page[number]': 1
-        }
+    }
 
     @pytest.fixture(autouse=True)
     async def clear_storage(self, es_client):
