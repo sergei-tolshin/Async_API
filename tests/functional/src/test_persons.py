@@ -1,101 +1,182 @@
+import math
+
 import orjson
 import pytest
-from functional.models.film import FilmModel, FilmPagination
-from functional.models.person import (PersonDetailsModel, PersonModel,
-                                      PersonPagination)
 from functional.settings import config
+from functional.testdata.films.factories import FilmFactory
+from functional.testdata.films.models import FilmPagination
+from functional.testdata.films.schema import SCHEMA as films_schema
+from functional.testdata.persons.factories import (PersonDetailsFactory,
+                                                   PersonFactory)
+from functional.testdata.persons.models import (PersonDetailsModel,
+                                                PersonModel, PersonPagination)
+from functional.testdata.persons.schema import SCHEMA as persons_schema
 from functional.utils.utils import hash_key
 
+PESON_INDEX = config.ELASTIC_INDEX['persons']
+FILM_INDEX = config.ELASTIC_INDEX['films']
 
+
+@pytest.fixture(scope='class')
+async def person_index(es_client):
+    await es_client.indices.create(index=PESON_INDEX, body=persons_schema)
+    yield
+    await es_client.indices.delete(index=PESON_INDEX)
+
+
+@pytest.fixture(scope='class')
+async def films_index(es_client):
+    await es_client.indices.create(index=FILM_INDEX, body=films_schema)
+    yield
+    await es_client.indices.delete(index=FILM_INDEX)
+
+
+@pytest.mark.usefixtures('person_index', 'films_index')
 class TestPersonsAPI:
-    index = config.ELASTIC_PERSON_INDEX
+    path = '/api/v1/persons/'
+    num_build_obj = 10
 
-    """ Вывести всех людей """
+    @pytest.fixture(autouse=True)
+    async def clear_storage(self, es_client):
+        query = {"query": {"match_all": {}}}
+        await es_client.delete_by_query(index=PESON_INDEX, body=query,
+                                        refresh=True)
+        await es_client.delete_by_query(index=FILM_INDEX, body=query,
+                                        refresh=True)
+
+    @pytest.fixture(autouse=True)
+    async def clear_cache(self, cache):
+        await cache.flushdb()
+
     @pytest.mark.asyncio
-    async def test_01_person(self, make_get_request, cache):
-        path = '/api/v1/persons/'
-
-        response = await make_get_request(path)
+    async def test_01_person_status(self, make_get_request):
+        response = await make_get_request(self.path)
         assert response.status == 200, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращает статус 200'
+            'Проверьте, что при GET запросе возвращается статус 200'
 
+    @pytest.mark.asyncio
+    async def test_02_person_count(self, make_get_request, bulk):
+        persons = PersonFactory.build_batch(self.num_build_obj)
+        await bulk(index=PESON_INDEX, objects=persons)
+
+        response = await make_get_request(self.path)
         data = response.body
-        assert PersonPagination(**data), \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Данные не соответствуют модели'
-        assert 'count' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `count`'
-        assert 'total_pages' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `total_pages`'
-        assert 'next' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `next`'
-        assert 'previous' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `previous`'
-        assert 'results' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `results`'
-        assert data['count'] == 4166, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Значение параметра `count` не правильное'
-        assert type(data['results']) == list, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Тип параметра `results` должен быть список'
-        assert len(data['results']) == 10, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
-            'Значение параметра `results` не правильное'
+        assert data['count'] == self.num_build_obj, \
+            'Значение параметра `count` не верное'
+
+    @pytest.mark.asyncio
+    async def test_03_person_filter(self, make_get_request, bulk, cache):
+        persons = PersonFactory.build_batch(self.num_build_obj)
+        count_actors = 0
+        count_directors = 0
+        count_writers = 0
+        for person in persons:
+            if 'actor' in person.roles:
+                count_actors += 1
+            if 'director' in person.roles:
+                count_directors += 1
+            if 'writer' in person.roles:
+                count_writers += 1
+
+        await bulk(index=PESON_INDEX, objects=persons)
 
         params = {"filter[role]": "director"}
-        response = await make_get_request(path, params)
+        response = await make_get_request(self.path, params)
         data = response.body
-        assert data['count'] == 700, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` ' \
+        assert data['count'] == count_directors, \
             'Результаты фильтруются по `filter[role]` параметру `director`'
 
         params = {'filter[role]': 'actor'}
-        response = await make_get_request(path, params)
+        response = await make_get_request(self.path, params)
         data = response.body
-        assert data['count'] == 2682, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` ' \
+        assert data['count'] == count_actors, \
             'Результаты фильтруются по `filter[role]` параметру `actor`'
 
         params = {'filter[role]': 'writer'}
-        response = await make_get_request(path, params)
+        response = await make_get_request(self.path, params)
         data = response.body
-        assert data['count'] == 1191, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` ' \
+        assert data['count'] == count_writers, \
             'Результаты фильтруются по `filter[role]` параметру `writer`'
 
-        params = {'page[number]': '417'}
-        response = await make_get_request(path, params)
+        params = {'filter[role]': 'unknown role'}
+        response = await make_get_request(self.path, params)
+        assert response.status == 422, \
+            'Возвращает статус 422 при неверном фильтре'
+
+    @pytest.mark.asyncio
+    async def test_04_person_pagination(self, make_get_request, bulk, cache):
+        persons = PersonFactory.build_batch(self.num_build_obj)
+        await bulk(index=PESON_INDEX, objects=persons)
+
+        params = {
+            'page[number]': 1,
+            'page[size]': 10
+        }
+        response = await make_get_request(self.path, params)
         data = response.body
-        assert len(data['results']) == 6, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращаете данные с пагинацией. ' \
+
+        assert PersonPagination(**data), \
+            'Данные не соответствуют модели `PersonPagination`'
+
+        assert len(data['results']) == params['page[size]'], \
             'Значение параметра `results` не правильное'
 
-        params = {'page[number]': '500'}
-        response = await make_get_request(path, params)
-        assert response.status == 404, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` возвращает статус 404 при неверной странице'
-
-        params = {'page[size]': '50'}
-        response = await make_get_request(path, params)
+        params['page[size]'] = 6
+        total_pages = math.ceil(self.num_build_obj / params['page[size]'])
+        params['page[number]'] = total_pages
+        response = await make_get_request(self.path, params)
         data = response.body
-        assert data['total_pages'] == 84, \
-            'Проверьте, что при GET запросе `/api/v1/persons/` меняется количество сраниц при изменение `page[size]`'
+        assert data['total_pages'] == total_pages, \
+            'Изменяется количество сраниц при изменении `page[size]`'
 
-        # поиск с учётом кеша в Redis
-        key = hash_key(self.index, {'path': path, 'params': params})
+        num_results_last_page = self.num_build_obj % params['page[size]']
+        num_results = params['page[size]']
+        if num_results_last_page != 0:
+            num_results = num_results_last_page
+        assert len(data['results']) == num_results, \
+            'Значение параметра `results` последней страницы не правильное'
+
+        params['page[number]'] = 0
+        response = await make_get_request(self.path, params)
+        assert response.status == 422, \
+            'Статус 422 при неверном `page[number]`'
+
+        page_number = math.ceil(self.num_build_obj / int(params['page[size]']))
+        params['page[number]'] = page_number + 1
+        response = await make_get_request(self.path, params)
+        assert response.status == 404, \
+            'Статус 404 при неверном `page[number]`'
+
+        params['page[size]'] = 0
+        response = await make_get_request(self.path, params)
+        assert response.status == 422, \
+            'Статус 422 при неверном `page[size]`'
+
+        params['page[size]'] = 1000
+        response = await make_get_request(self.path, params)
+        assert response.status == 422, \
+            'Статус 422 при неверном `page[size]`'
+
+    @pytest.mark.asyncio
+    async def test_05_person_cache(self, make_get_request, bulk, cache):
+        persons = PersonFactory.build_batch(self.num_build_obj)
+        await bulk(index=PESON_INDEX, objects=persons)
+
+        params = {
+            'page[number]': '1',
+            'page[size]': '10'
+        }
+        response = await make_get_request(self.path, params)
+        data = response.body
+
+        key = hash_key(PESON_INDEX, {'path': self.path, 'params': params})
         data_cache = await cache.get(key=key)
+
         results = [PersonModel(**_).dict()
                    for _ in orjson.loads(data_cache)['results']]
         assert data_cache is not None, \
             'Проверьте, что при запросе из кэша возвращаете данные объекта.'
         assert results == data['results'], \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта. ' \
             'Данные обекта в elastic не совпадают с данными в кэше'
         await cache.delete(key=key)
         assert await cache.get(key=key) is None, \
@@ -103,193 +184,59 @@ class TestPersonsAPI:
 
     """ Поиск конкретного человека """
     @pytest.mark.asyncio
-    async def test_02_person_detail(self, make_get_request, read_case, cache):
-        object = await read_case('persons/case_get_by_id.json')
+    async def test_06_person_detail(self, make_get_request, bulk, cache):
+        person = PersonDetailsFactory()
+        await bulk(index=PESON_INDEX, objects=[person])
 
-        path = f"/api/v1/persons/{object['id']}/"
+        path = f"{self.path}{person.id}/"
 
         response = await make_get_request(path)
         assert response.status == 200, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/` возвращает статус 200'
+            'Проверьте, что при GET запросе возвращается статус 200'
 
         data = response.body
         assert PersonDetailsModel(**data), \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/` возвращаете данные с пагинацией. ' \
-            'Данные не соответствуют модели'
-        assert type(data.get('id')) == str, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/` возвращаете данные объекта. ' \
-            'Значение `id` нет или не является строкой.'
-        assert data.get('full_name') == object['full_name'], \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/` возвращаете данные объекта. ' \
-            'Значение `full_name` неправильное.'
-        assert data.get('roles') == object['roles'], \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/` возвращаете данные объекта. ' \
-            'Значение `roles` неправильное.'
-        assert data.get('film_ids') == object['film_ids'], \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/` возвращаете данные объекта. ' \
-            'Значение `film_ids` неправильное.'
+            'Данные не соответствуют модели `PersonDetailsModel`'
 
-        # поиск с учётом кеша в Redis
-        key = hash_key(self.index, object['id'])
+    @pytest.mark.asyncio
+    async def test_07_person_detail_cache(self, make_get_request, bulk, cache):
+        person = PersonDetailsFactory()
+        await bulk(index=PESON_INDEX, objects=[person])
+
+        path = f"{self.path}{person.id}/"
+
+        response = await make_get_request(path)
+        data = response.body
+
+        key = hash_key(PESON_INDEX, person.id)
         data_cache = await cache.get(key=key)
+
         assert await cache.get(key=key) is not None, \
             'Проверьте, что при запросе из кэша возвращаете данные объекта.'
         assert orjson.loads(data_cache) == data, \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта. ' \
             'Данные обекта в elastic не совпадают с данными в кэше'
         await cache.delete(key=key)
         assert await cache.get(key=key) is None, \
             'Проверьте, что при DELETE удаляете объект из кэша'
 
-    """ Поиск всех фильмов с участием человека """
     @pytest.mark.asyncio
-    async def test_03_person_films(self, make_get_request, read_case, cache):
-        object = await read_case('persons/case_get_films.json')
+    async def test_08_person_films(self, make_get_request, bulk, cache):
+        films = FilmFactory.build_batch(5)
+        person = PersonDetailsFactory(film_ids=[film.id for film in films])
+        await bulk(index=FILM_INDEX, objects=films)
+        await bulk(index=PESON_INDEX, objects=[person])
 
-        path = f"/api/v1/persons/{object['id']}/film/"
-
+        path = f"{self.path}{person.id}/film/"
         response = await make_get_request(path)
         assert response.status == 200, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращает статус 200'
+            'Проверьте, что при GET запросе возвращается статус 200'
 
         data = response.body
         assert FilmPagination(**data), \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Данные не соответствуют модели'
-        assert 'count' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `count`'
-        assert 'total_pages' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `total_pages`'
-        assert 'next' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `next`'
-        assert 'previous' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `previous`'
-        assert 'results' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `results`'
-        assert data['count'] == 6, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Значение параметра `count` не правильное'
-        assert type(data['results']) == list, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Тип параметра `results` должен быть список'
-        assert len(data['results']) == 6, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращаете данные с пагинацией. ' \
-            'Значение параметра `results` не правильное'
+            'Данные не соответствуют модели `FilmPagination`'
 
-        params = {'page[number]': '2'}
-        response = await make_get_request(path, params)
-        assert response.status == 404, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` возвращает статус 404 при указании несуществующей страницы'
+        assert data['count'] == len(films), \
+            'Значение параметра `count` не верное'
 
-        params = {'page[size]': '2'}
-        response = await make_get_request(path, params)
-        data = response.body
-        assert data['total_pages'] == 3, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` меняется количество сраниц при изменение `page[size]`'
-        assert len(data['results']) == 2, \
-            'Проверьте, что при GET запросе `/api/v1/persons/{person_id}/film/` количество результатов ' \
-            'соответствует `page[size]`'
-
-        # поиск с учётом кеша в Redis
-        key = hash_key(self.index, {'path': path, 'params': params})
-        data_cache = await cache.get(key=key)
-        results = [FilmModel(**_).dict()
-                   for _ in orjson.loads(data_cache)['results']]
-        assert data_cache is not None, \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта.'
-        assert results == data['results'], \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта. ' \
-            'Данные обекта в elastic не совпадают с данными в кэше'
-        await cache.delete(key=key)
-        assert await cache.get(key=key) is None, \
-            'Проверьте, что при DELETE удаляете объект из кэша'
-
-    """ Поиск человека или людей по фразе """
-    @pytest.mark.asyncio
-    async def test_04_person_search(self, make_get_request, read_case, cache):
-        object = await read_case('persons/case_get_search.json')
-
-        path = '/api/v1/persons/search'
-
-        params = {'query': 'Samuli Torssonen'}
-        response = await make_get_request(path, params)
-        assert response.status == 200, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращает статус 200'
-
-        data = response.body
-        assert PersonPagination(**data), \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Данные не соответствуют модели'
-        assert 'count' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `count`'
-        assert 'total_pages' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `total_pages`'
-        assert 'next' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `next`'
-        assert 'previous' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `previous`'
-        assert 'results' in data, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Не найден параметр `results`'
-        assert data['count'] == 8, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Значение параметра `count` не правильное'
-        assert type(data['results']) == list, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Тип параметра `results` должен быть список'
-        assert len(data['results']) == 8, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Значение параметра `results` не правильное'
-        assert data['results'][1]['id'] == object['id'], \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Значение параметра `id` не правильное'
-        assert type(data['results'][1]['roles']) == list, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Тип параметра `roles` должен быть список'
-        assert type(data['results'][1]['film_ids']) == list, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Тип параметра `film_ids` должен быть список'
-
-        params = {'query': 'persons_not_found'}
-        response = await make_get_request(path, params)
-        data = response.body
-        assert len(data['results']) == 0, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращаете данные с пагинацией. ' \
-            'Значение параметра `results` не правильное'
-
-        params = {'query': 'Samuli Torssonen', 'page[number]': '2'}
-        response = await make_get_request(path, params)
-        assert response.status == 404, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` возвращает статус 404 при указании несуществующей страницы'
-
-        params = {'query': 'Samuli Torssonen', 'page[size]': '2'}
-        response = await make_get_request(path, params)
-        data = response.body
-        assert data['total_pages'] == 4, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` меняется количество сраниц при изменение `page[size]`'
-        assert len(data['results']) == 2, \
-            'Проверьте, что при GET запросе `/api/v1/persons/search` количество результатов ' \
-            'соответствует `page[size]`'
-
-        # поиск с учётом кеша в Redis
-        key = hash_key(self.index, {'path': path, 'params': params})
-        data_cache = await cache.get(key=key)
-        results = [PersonModel(**_).dict()
-                   for _ in orjson.loads(data_cache)['results']]
-        assert data_cache is not None, \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта.'
-        assert results == data['results'], \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта. ' \
-            'Данные обекта в elastic не совпадают с данными в кэше'
-        await cache.delete(key=key)
-        assert await cache.get(key=key) is None, \
-            'Проверьте, что при DELETE удаляете объект из кэша'
+        assert data['results'] == films, \
+            'Данные не совпадают'

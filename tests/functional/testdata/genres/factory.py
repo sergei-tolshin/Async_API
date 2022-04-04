@@ -1,5 +1,5 @@
 import factory
-from functional.models.genre import GenreDetailsModel, GenreModel
+from functional.testdata.genres.models import GenreDetailsModel, GenreModel
 
 
 class GenreFactory(factory.Factory):
@@ -17,6 +17,3 @@ class GenreDetailFactory(GenreFactory):
         model = GenreDetailsModel
 
     description = factory.Faker('text', max_nb_chars=100)
-
-
-

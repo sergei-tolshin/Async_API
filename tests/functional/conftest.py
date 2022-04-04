@@ -1,7 +1,5 @@
 import asyncio
-import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import aiohttp
 import aioredis
@@ -66,16 +64,6 @@ def make_get_request(session):
                 headers=response.headers,
                 status=response.status,
             )
-    return inner
-
-
-@pytest.fixture
-def read_case():
-    async def inner(file_name: str) -> dict:
-        file = Path(config.TEST_DATA_PATH, file_name)
-        with file.open(encoding='utf-8') as fp:
-            case_data = json.load(fp)
-        return case_data
     return inner
 
 

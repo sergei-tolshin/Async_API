@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from functional.models.base import OrjsonMixin, PaginationMixin
+from functional.testdata.base import OrjsonMixin, PaginationMixin
 
 
 class FilmModel(OrjsonMixin):

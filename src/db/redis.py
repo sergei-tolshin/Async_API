@@ -11,7 +11,7 @@ from db.cache import AbstractCache
 
 class RedisCache(AbstractCache):
     @classmethod
-    @backoff.on_exception(backoff.expo, ConnectionRefusedError)
+    @backoff.on_exception(backoff.expo, ConnectionRefusedError, max_tries=10)
     async def create(cls, address, minsize=10, maxsize=20):
         self = RedisCache()
         self.redis = await create_redis_pool(
@@ -24,11 +24,11 @@ class RedisCache(AbstractCache):
     def __init__(self):
         self.redis: Redis = None
 
-    @backoff.on_exception(backoff.expo, RedisError)
+    @backoff.on_exception(backoff.expo, RedisError, max_tries=10)
     async def set(self, key: str, data: Union[str, bytes]) -> None:
         await self.redis.set(key, data, expire=config.CACHE_EXPIRE_IN_SECONDS)
 
-    @backoff.on_exception(backoff.expo, RedisError)
+    @backoff.on_exception(backoff.expo, RedisError, max_tries=10)
     async def get(self, key: str) -> Optional[bytes]:
         return await self.redis.get(key) or None
 

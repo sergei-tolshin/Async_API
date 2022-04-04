@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 
+import orjson
 from pydantic import BaseSettings
 
 
@@ -18,12 +18,50 @@ class Settings(BaseSettings):
     ELASTIC_HOST: str = os.getenv('ELASTIC_HOST', '127.0.0.1')
     ELASTIC_PORT: int = int(os.getenv('ELASTIC_PORT', 9200))
     ELASTIC_URL: str = f'{ELASTIC_HOST}:{ELASTIC_PORT}'
-    ELASTIC_FILMS_INDEX: str = 'movies'
-    ELASTIC_GENRE_INDEX: str = 'genres'
-    ELASTIC_PERSON_INDEX: str = 'persons'
-
-    BASE_DIR = Path(__file__).resolve().parent
-    TEST_DATA_PATH = BASE_DIR / 'testdata'
+    ELASTIC_INDEX = orjson.loads(os.getenv(
+        'ELASTIC_INDEX',
+        '{"films": "test_movies", "genres": "test_genres", "persons": "test_persons"}'
+    ))
+    ELASTIC_SETTINGS: dict = {
+        'refresh_interval': '1s',
+        'analysis': {
+            'filter': {
+                'english_stop': {
+                    'type': 'stop',
+                    'stopwords': '_english_'
+                },
+                'english_stemmer': {
+                    'type': 'stemmer',
+                    'language': 'english'
+                },
+                'english_possessive_stemmer': {
+                    'type': 'stemmer',
+                    'language': 'possessive_english'
+                },
+                'russian_stop': {
+                    'type': 'stop',
+                    'stopwords': '_russian_'
+                },
+                'russian_stemmer': {
+                    'type': 'stemmer',
+                    'language': 'russian'
+                }
+            },
+            'analyzer': {
+                'ru_en': {
+                    'tokenizer': 'standard',
+                    'filter': [
+                        'lowercase',
+                        'english_stop',
+                        'english_stemmer',
+                        'english_possessive_stemmer',
+                        'russian_stop',
+                        'russian_stemmer'
+                    ]
+                }
+            }
+        }
+    }
 
 
 config = Settings()

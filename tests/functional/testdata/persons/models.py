@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from functional.models.base import OrjsonMixin, PaginationMixin
+from functional.testdata.base import OrjsonMixin, PaginationMixin
 
 
 class PersonModel(OrjsonMixin):
@@ -13,7 +13,6 @@ class PersonModel(OrjsonMixin):
 
 class PersonDetailsModel(PersonModel):
     """Модель ответа API для одного персонажа"""
-    film_ids: Optional[List[str]]
     actor_film_ids: Optional[List[str]]
     director_film_ids: Optional[List[str]]
     writer_film_ids: Optional[List[str]]
