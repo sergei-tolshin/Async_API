@@ -13,15 +13,15 @@ from functional.testdata.persons.models import (PersonDetailsModel,
 from functional.testdata.persons.schema import SCHEMA as persons_schema
 from functional.utils.utils import hash_key
 
-PESON_INDEX = config.ELASTIC_INDEX['persons']
+PERSON_INDEX = config.ELASTIC_INDEX['persons']
 FILM_INDEX = config.ELASTIC_INDEX['films']
 
 
 @pytest.fixture(scope='class')
 async def person_index(es_client):
-    await es_client.indices.create(index=PESON_INDEX, body=persons_schema)
+    await es_client.indices.create(index=PERSON_INDEX, body=persons_schema)
     yield
-    await es_client.indices.delete(index=PESON_INDEX)
+    await es_client.indices.delete(index=PERSON_INDEX)
 
 
 @pytest.fixture(scope='class')
@@ -39,7 +39,7 @@ class TestPersonsAPI:
     @pytest.fixture(autouse=True)
     async def clear_storage(self, es_client):
         query = {"query": {"match_all": {}}}
-        await es_client.delete_by_query(index=PESON_INDEX, body=query,
+        await es_client.delete_by_query(index=PERSON_INDEX, body=query,
                                         refresh=True)
         await es_client.delete_by_query(index=FILM_INDEX, body=query,
                                         refresh=True)
@@ -57,7 +57,7 @@ class TestPersonsAPI:
     @pytest.mark.asyncio
     async def test_02_person_count(self, make_get_request, bulk):
         persons = PersonFactory.build_batch(self.num_build_obj)
-        await bulk(index=PESON_INDEX, objects=persons)
+        await bulk(index=PERSON_INDEX, objects=persons)
 
         response = await make_get_request(self.path)
         data = response.body
@@ -78,7 +78,7 @@ class TestPersonsAPI:
             if 'writer' in person.roles:
                 count_writers += 1
 
-        await bulk(index=PESON_INDEX, objects=persons)
+        await bulk(index=PERSON_INDEX, objects=persons)
 
         params = {"filter[role]": "director"}
         response = await make_get_request(self.path, params)
@@ -106,7 +106,7 @@ class TestPersonsAPI:
     @pytest.mark.asyncio
     async def test_04_person_pagination(self, make_get_request, bulk, cache):
         persons = PersonFactory.build_batch(self.num_build_obj)
-        await bulk(index=PESON_INDEX, objects=persons)
+        await bulk(index=PERSON_INDEX, objects=persons)
 
         params = {
             'page[number]': 1,
@@ -160,7 +160,7 @@ class TestPersonsAPI:
     @pytest.mark.asyncio
     async def test_05_person_cache(self, make_get_request, bulk, cache):
         persons = PersonFactory.build_batch(self.num_build_obj)
-        await bulk(index=PESON_INDEX, objects=persons)
+        await bulk(index=PERSON_INDEX, objects=persons)
 
         params = {
             'page[number]': '1',
@@ -169,7 +169,7 @@ class TestPersonsAPI:
         response = await make_get_request(self.path, params)
         data = response.body
 
-        key = hash_key(PESON_INDEX, {'path': self.path, 'params': params})
+        key = hash_key(PERSON_INDEX, {'path': self.path, 'params': params})
         data_cache = await cache.get(key=key)
 
         results = [PersonModel(**_).dict()
@@ -186,7 +186,7 @@ class TestPersonsAPI:
     @pytest.mark.asyncio
     async def test_06_person_detail(self, make_get_request, bulk, cache):
         person = PersonDetailsFactory()
-        await bulk(index=PESON_INDEX, objects=[person])
+        await bulk(index=PERSON_INDEX, objects=[person])
 
         path = f"{self.path}{person.id}/"
 
@@ -201,14 +201,14 @@ class TestPersonsAPI:
     @pytest.mark.asyncio
     async def test_07_person_detail_cache(self, make_get_request, bulk, cache):
         person = PersonDetailsFactory()
-        await bulk(index=PESON_INDEX, objects=[person])
+        await bulk(index=PERSON_INDEX, objects=[person])
 
         path = f"{self.path}{person.id}/"
 
         response = await make_get_request(path)
         data = response.body
 
-        key = hash_key(PESON_INDEX, person.id)
+        key = hash_key(PERSON_INDEX, person.id)
         data_cache = await cache.get(key=key)
 
         assert await cache.get(key=key) is not None, \
@@ -220,11 +220,11 @@ class TestPersonsAPI:
             'Проверьте, что при DELETE удаляете объект из кэша'
 
     @pytest.mark.asyncio
-    async def test_08_person_films(self, make_get_request, bulk, cache):
-        films = FilmFactory.build_batch(5)
+    async def test_08_person_films(self, make_get_request, bulk):
+        films = FilmFactory.build_batch(10)
         person = PersonDetailsFactory(film_ids=[film.id for film in films])
         await bulk(index=FILM_INDEX, objects=films)
-        await bulk(index=PESON_INDEX, objects=[person])
+        await bulk(index=PERSON_INDEX, objects=[person])
 
         path = f"{self.path}{person.id}/film/"
         response = await make_get_request(path)

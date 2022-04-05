@@ -11,7 +11,7 @@ from functional.testdata.persons.models import PersonModel, PersonPagination
 from functional.testdata.persons.schema import SCHEMA as persons_schema
 from functional.utils.utils import hash_key
 
-PESON_INDEX = config.ELASTIC_INDEX['persons']
+PERSON_INDEX = config.ELASTIC_INDEX['persons']
 FILM_INDEX = config.ELASTIC_INDEX['films']
 
 fake = FakerFactory.create()
@@ -19,9 +19,9 @@ fake = FakerFactory.create()
 
 @pytest.fixture(scope='class')
 async def persons_index(es_client):
-    await es_client.indices.create(index=PESON_INDEX, body=persons_schema)
+    await es_client.indices.create(index=PERSON_INDEX, body=persons_schema)
     yield
-    await es_client.indices.delete(index=PESON_INDEX)
+    await es_client.indices.delete(index=PERSON_INDEX)
 
 
 @pytest.fixture(scope='class')
@@ -36,7 +36,7 @@ class TestSearchAPI:
     @pytest.fixture(autouse=True)
     async def clear_storage(self, es_client):
         query = {"query": {"match_all": {}}}
-        await es_client.delete_by_query(index=PESON_INDEX, body=query,
+        await es_client.delete_by_query(index=PERSON_INDEX, body=query,
                                         refresh=True)
         await es_client.delete_by_query(index=FILM_INDEX, body=query,
                                         refresh=True)
@@ -48,10 +48,10 @@ class TestSearchAPI:
     @pytest.mark.asyncio
     async def test_01_person_search(self, make_get_request, bulk):
         persons = PersonFactory.build_batch(10, full_name=factory.LazyAttribute(
-            lambda x: 'Name ' + fake.name()))
-        await bulk(index=PESON_INDEX, objects=persons)
+            lambda x: 'Uniquename ' + fake.name()))
+        await bulk(index=PERSON_INDEX, objects=persons)
         persons = PersonFactory.build_batch(20)
-        await bulk(index=PESON_INDEX, objects=persons)
+        await bulk(index=PERSON_INDEX, objects=persons)
 
         path = '/api/v1/persons/search'
 
@@ -69,7 +69,7 @@ class TestSearchAPI:
             'Найденные данные не совпадают'
 
         params = {
-            'query': 'Name',
+            'query': 'Uniquename',
             'page[size]': 5
         }
         response = await make_get_request(path, params)
@@ -87,7 +87,7 @@ class TestSearchAPI:
     @pytest.mark.asyncio
     async def test_02_person_search_cache(self, make_get_request, bulk, cache):
         persons = PersonFactory.build_batch(5)
-        await bulk(index=PESON_INDEX, objects=persons)
+        await bulk(index=PERSON_INDEX, objects=persons)
 
         path = '/api/v1/persons/search'
         params = {
@@ -97,7 +97,7 @@ class TestSearchAPI:
         }
         response = await make_get_request(path, params)
         data = response.body
-        key = hash_key(PESON_INDEX, {'path': path, 'params': params})
+        key = hash_key(PERSON_INDEX, {'path': path, 'params': params})
         data_cache = await cache.get(key=key)
         results = [PersonModel(**_).dict()
                    for _ in orjson.loads(data_cache)['results']]
@@ -112,7 +112,7 @@ class TestSearchAPI:
     @pytest.mark.asyncio
     async def test_03_films_search(self, make_get_request, bulk):
         films = FilmFactory.build_batch(10, title=factory.LazyAttribute(
-            lambda x: 'Title ' + fake.name()))
+            lambda x: 'Uniquetitle ' + fake.name()))
         await bulk(index=FILM_INDEX, objects=films)
         films = FilmFactory.build_batch(20)
         await bulk(index=FILM_INDEX, objects=films)
@@ -133,7 +133,7 @@ class TestSearchAPI:
             'Найденные данные не совпадают'
 
         params = {
-            'query': 'Title',
+            'query': 'Uniquetitle',
             'page[size]': 5
         }
         response = await make_get_request(path, params)
@@ -164,7 +164,7 @@ class TestSearchAPI:
         data = response.body
         key = hash_key(FILM_INDEX, {'path': path, 'params': params})
         data_cache = await cache.get(key=key)
-        print(data_cache)
+
         results = [FilmModel(**_).dict()
                    for _ in orjson.loads(data_cache)['results']]
         assert data_cache is not None, \
