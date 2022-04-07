@@ -12,13 +12,13 @@ GENRE_INDEX = config.ELASTIC_INDEX['genres']
 
 
 @pytest.fixture(scope='class')
-async def create_index(es_client):
+async def genres_index(es_client):
     await es_client.indices.create(index=GENRE_INDEX, body=genres_schema)
     yield
     await es_client.indices.delete(index=GENRE_INDEX)
 
 
-@pytest.mark.usefixtures('create_index')
+@pytest.mark.usefixtures('genres_index')
 class TestGenreAPI:
 
     path = 'api/v1/genres/'
@@ -164,7 +164,7 @@ class TestGenreAPI:
         response = await make_get_request(path)
         assert 'detail' in response.body
         assert (response.body['detail'] == 'жанр не найден' or
-                response.body['detail'] == 'genre not found')
+                response.body['detail'] == 'Genres not found')
 
     @pytest.mark.asyncio
     async def test_genres_sort_other_field(self, bulk, make_get_request):

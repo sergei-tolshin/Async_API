@@ -1,22 +1,11 @@
-from functools import lru_cache
-
 from core import config
-from db.manager import DataManager, get_data_manager
-from fastapi import Depends
-from models.person import PersonElasticModel
+from db.manager import DataManager
+from models.persons import PersonsElasticModel
 
 from .base import BaseService
-from .mixins import ListModelMixin, RetrieveModelMixin
 
 
-class PersonService(RetrieveModelMixin, ListModelMixin, BaseService):
+class Persons(DataManager, BaseService):
     index = config.ELASTIC_INDEX['persons']
-    model = PersonElasticModel
+    model = PersonsElasticModel
     search_fields = ['full_name']
-
-
-@lru_cache()
-def get_person_service(
-        data_manager: DataManager = Depends(get_data_manager),
-) -> PersonService:
-    return PersonService(data_manager)

@@ -1,22 +1,11 @@
-from functools import lru_cache
-
 from core import config
-from db.manager import DataManager, get_data_manager
-from fastapi import Depends
-from models.film import FilmElasticModel
+from db.manager import DataManager
+from models.films import FilmsElasticModel
 
 from .base import BaseService
-from .mixins import ListModelMixin, RetrieveModelMixin
 
 
-class FilmService(RetrieveModelMixin, ListModelMixin, BaseService):
+class Films(DataManager, BaseService):
     index = config.ELASTIC_INDEX['films']
-    model = FilmElasticModel
+    model = FilmsElasticModel
     search_fields = ['title', 'description']
-
-
-@lru_cache()
-def get_film_service(
-        data_manager: DataManager = Depends(get_data_manager),
-) -> FilmService:
-    return FilmService(data_manager)

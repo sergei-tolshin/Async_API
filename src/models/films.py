@@ -2,7 +2,6 @@ from typing import List, Optional
 from uuid import UUID
 
 from models.base import ESBaseModel, OrjsonMixin
-from core.paginator import PaginationMixin
 
 
 class Person(ESBaseModel):
@@ -13,7 +12,7 @@ class Genre(ESBaseModel):
     name: str
 
 
-class FilmElasticModel(ESBaseModel):
+class FilmsElasticModel(ESBaseModel):
     title: str
     imdb_rating: Optional[float]
     film_type: Optional[str]
@@ -27,14 +26,14 @@ class FilmElasticModel(ESBaseModel):
     writers_names: Optional[List[str]] = None
 
 
-class FilmResponseModel(OrjsonMixin):
+class FilmsResponseModel(OrjsonMixin):
     """Модель ответа API для фильмов"""
     id: UUID
     title: str
     imdb_rating: Optional[float]
 
 
-class FilmDetailsResponseModel(FilmResponseModel):
+class FilmsDetailsResponseModel(FilmsResponseModel):
     """Модель ответа API для фильмов"""
     film_type: Optional[str]
     description: Optional[str] = None
@@ -42,8 +41,3 @@ class FilmDetailsResponseModel(FilmResponseModel):
     directors: Optional[List] = None
     actors: Optional[List] = None
     writers: Optional[List] = None
-
-
-class FilmPagination(PaginationMixin):
-    """Модель ответа API для результатов в пагинации"""
-    results: List[FilmResponseModel] = []
