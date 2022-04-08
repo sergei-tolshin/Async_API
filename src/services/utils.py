@@ -1,5 +1,7 @@
 from typing import List, Optional
 
+from core import config
+
 
 class RequestParams:
     async def get_query(self,
@@ -9,28 +11,29 @@ class RequestParams:
                         ) -> dict:
         # Парсит параметры и формирует запрос в elastic
         _index = params.get('_index')
-        query_body = params.get('query_body')
-        search_text = params.get('search_text')
-        filter = params.get('filter[genre]')
-        page_number = int(params.get('page[number]'))
-        page_size = int(params.get('page[size]'))
+        body = params.get('body')
+        query = params.get('query')
+        filter_genre = params.get('filter[genre]')
+        filter_role = params.get('filter[role]')
         sort = params.get('sort')
+        page_number = int(params.get('page[number]') or 1)
+        page_size = int(params.get('page[size]') or config.PAGE_SIZE)
 
         if not _index:
             _index = index
 
-        if not query_body:
-            query_body: dict = {'query': {'match_all': {}}}
+        if not body:
+            body: dict = {'query': {'match_all': {}}}
 
-        if filter:
-            query_body = {
+        if filter_genre:
+            body = {
                 'query': {
                     'nested': {
                         'path': 'genre',
                         'query': {
                             'bool': {
                                 'must': [
-                                    {'term': {'genre.id': filter}},
+                                    {'term': {'genre.id': filter_genre}},
                                 ]
                             }
                         }
@@ -38,11 +41,14 @@ class RequestParams:
                 }
             }
 
-        if search_text:
-            query_body: dict = {
+        if filter_role:
+            body = {'query': {'term': {'roles': filter_role}}}
+
+        if query:
+            body: dict = {
                 'query': {
                     'multi_match': {
-                        'query': search_text,
+                        'query': query,
                         'fuzziness': 'auto',
                         'fields': search_fields
                     }
@@ -54,15 +60,15 @@ class RequestParams:
             order = 'desc' if sort_field.startswith('-') else 'asc'
             sort_field = f"{sort_field.removeprefix('-')}:{order}"
 
-        query = {
+        query_params = {
             'index': _index,
-            'body': query_body,
+            'body': body,
             'sort': sort_field,
             'size': page_size,
             'from_': (page_number - 1) * page_size
         }
 
-        query = {key: value for key, value in query.items()
-                 if value is not None}
+        query_params = {key: value for key, value in query_params.items()
+                        if value is not None}
 
-        return query
+        return query_params

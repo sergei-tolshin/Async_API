@@ -9,7 +9,7 @@ from functional.testdata.films.schema import SCHEMA as films_schema
 from functional.testdata.persons.factories import (PersonDetailsFactory,
                                                    PersonFactory)
 from functional.testdata.persons.models import (PersonDetailsModel,
-                                                PersonModel, PersonPagination)
+                                                PersonPagination)
 from functional.testdata.persons.schema import SCHEMA as persons_schema
 from functional.utils.utils import hash_key
 
@@ -157,34 +157,9 @@ class TestPersonsAPI:
         assert response.status == 422, \
             'Статус 422 при неверном `page[size]`'
 
-    @pytest.mark.asyncio
-    async def test_05_person_cache(self, make_get_request, bulk, cache):
-        persons = PersonFactory.build_batch(self.num_build_obj)
-        await bulk(index=PERSON_INDEX, objects=persons)
-
-        params = {
-            'page[number]': '1',
-            'page[size]': '10'
-        }
-        response = await make_get_request(self.path, params)
-        data = response.body
-
-        key = hash_key(PERSON_INDEX, {'path': self.path, 'params': params})
-        data_cache = await cache.get(key=key)
-
-        results = [PersonModel(**_).dict()
-                   for _ in orjson.loads(data_cache)['results']]
-        assert data_cache is not None, \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта.'
-        assert results == data['results'], \
-            'Данные обекта в elastic не совпадают с данными в кэше'
-        await cache.delete(key=key)
-        assert await cache.get(key=key) is None, \
-            'Проверьте, что при DELETE удаляете объект из кэша'
-
     """ Поиск конкретного человека """
     @pytest.mark.asyncio
-    async def test_06_person_detail(self, make_get_request, bulk, cache):
+    async def test_05_person_detail(self, make_get_request, bulk, cache):
         person = PersonDetailsFactory()
         await bulk(index=PERSON_INDEX, objects=[person])
 
@@ -199,7 +174,7 @@ class TestPersonsAPI:
             'Данные не соответствуют модели `PersonDetailsModel`'
 
     @pytest.mark.asyncio
-    async def test_07_person_detail_cache(self, make_get_request, bulk, cache):
+    async def test_06_person_detail_cache(self, make_get_request, bulk, cache):
         person = PersonDetailsFactory()
         await bulk(index=PERSON_INDEX, objects=[person])
 
@@ -220,13 +195,59 @@ class TestPersonsAPI:
             'Проверьте, что при DELETE удаляете объект из кэша'
 
     @pytest.mark.asyncio
+    async def test_07_person_cache_update(self, bulk, make_get_request, cache):
+        person = PersonDetailsFactory(full_name='original name')
+        await bulk(index=PERSON_INDEX, objects=[person])
+        path = self.path + person.id
+
+        response = await make_get_request(path)
+        assert response.body == person.dict(), \
+            'Проверьте, что возвращенные данные совпадают.'
+
+        person.full_name = 'updated name'
+        await bulk(index=PERSON_INDEX, objects=[person])
+
+        response = await make_get_request(path)
+        assert response.body != person.dict(), \
+            'Проверьте, что данные в elastic и redis не совпадают.'
+
+        await cache.flushall()
+        response = await make_get_request(path)
+        assert response.body == person.dict(), \
+            'Проверьте, что данные обновились.'
+
+    @pytest.mark.asyncio
+    async def test_07_person_cache_delete(self, bulk, make_get_request, cache):
+        person = PersonDetailsFactory(full_name='original name')
+        await bulk(index=PERSON_INDEX, objects=[person])
+        path = self.path + person.id
+
+        response = await make_get_request(path)
+        assert response.body == person.dict(), \
+            'Проверьте, что возвращенные данные совпадают.'
+
+        await bulk(index=PERSON_INDEX, objects=[person], op_type='delete')
+
+        response = await make_get_request(path)
+        assert response.body == person.dict(), \
+            'Проверьте, что после удаления из elastic, ' \
+            'данные приходят из кэша.'
+
+        await cache.flushall()
+        response = await make_get_request(path)
+        assert 'detail' in response.body
+        assert (response.body['detail'] == 'персонаж не найден' or
+                response.body['detail'] == 'Persons not found'), \
+            'Проверьте, что данные очищаются из кэша.'
+
+    @pytest.mark.asyncio
     async def test_08_person_films(self, make_get_request, bulk):
         films = FilmFactory.build_batch(10)
         person = PersonDetailsFactory(film_ids=[film.id for film in films])
         await bulk(index=FILM_INDEX, objects=films)
         await bulk(index=PERSON_INDEX, objects=[person])
 
-        path = f"{self.path}{person.id}/film/"
+        path = f"{self.path}{person.id}/films/"
         response = await make_get_request(path)
         assert response.status == 200, \
             'Проверьте, что при GET запросе возвращается статус 200'

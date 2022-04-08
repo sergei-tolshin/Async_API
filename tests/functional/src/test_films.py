@@ -50,7 +50,8 @@ class TestFilmsAPI:
         await bulk(index=FILM_INDEX, objects=films)
 
         response = await make_get_request(self.path, self.params)
-        results = [record['imdb_rating'] for record in response.body['results']]
+        results = [record['imdb_rating']
+                   for record in response.body['results']]
 
         expected = sorted([film.imdb_rating for film in films], reverse=True)
         assert results == expected
@@ -64,7 +65,8 @@ class TestFilmsAPI:
         params = self.params
         params['sort'] = 'imdb_rating'
         response = await make_get_request(self.path, params=params)
-        results = [record['imdb_rating'] for record in response.body['results']]
+        results = [record['imdb_rating']
+                   for record in response.body['results']]
 
         expected = sorted([film.imdb_rating for film in films])
         assert results == expected
@@ -165,7 +167,7 @@ class TestFilmsAPI:
         response = await make_get_request(path)
         assert 'detail' in response.body
         assert (response.body['detail'] == 'фильм не найден' or
-                response.body['detail'] == 'film not found')
+                response.body['detail'] == 'Films not found')
 
     @pytest.mark.asyncio
     async def test_films_sort_other_field(self, bulk, make_get_request):
@@ -209,7 +211,8 @@ class TestFilmsAPI:
 
         response = await make_get_request(self.path, params=self.params)
         first_page_body = response.body['results']
-        sorted_films = sorted(films, key=lambda obj: obj.imdb_rating, reverse=True)
+        sorted_films = sorted(
+            films, key=lambda obj: obj.imdb_rating, reverse=True)
 
         assert sorted_films[0].dict() in first_page_body
 

@@ -1,15 +1,13 @@
-import orjson
-import pytest
 import factory
+import pytest
 from faker import Factory as FakerFactory
 from functional.settings import config
 from functional.testdata.films.factories import FilmFactory
-from functional.testdata.films.models import FilmModel, FilmPagination
+from functional.testdata.films.models import FilmPagination
 from functional.testdata.films.schema import SCHEMA as films_schema
 from functional.testdata.persons.factories import PersonFactory
-from functional.testdata.persons.models import PersonModel, PersonPagination
+from functional.testdata.persons.models import PersonPagination
 from functional.testdata.persons.schema import SCHEMA as persons_schema
-from functional.utils.utils import hash_key
 
 PERSON_INDEX = config.ELASTIC_INDEX['persons']
 FILM_INDEX = config.ELASTIC_INDEX['films']
@@ -47,8 +45,9 @@ class TestSearchAPI:
 
     @pytest.mark.asyncio
     async def test_01_person_search(self, make_get_request, bulk):
-        persons = PersonFactory.build_batch(10, full_name=factory.LazyAttribute(
-            lambda x: 'Uniquename ' + fake.name()))
+        lazy_full_name = factory.LazyAttribute(
+            lambda x: 'Uniquename ' + fake.name())
+        persons = PersonFactory.build_batch(10, full_name=lazy_full_name)
         await bulk(index=PERSON_INDEX, objects=persons)
         persons = PersonFactory.build_batch(20)
         await bulk(index=PERSON_INDEX, objects=persons)
@@ -85,7 +84,8 @@ class TestSearchAPI:
             'Значение параметра `results` не правильное'
 
     @pytest.mark.asyncio
-    async def test_02_person_search_cache(self, make_get_request, bulk, cache):
+    async def test_02_person_search_cache_update(self, make_get_request,
+                                                 bulk, cache):
         persons = PersonFactory.build_batch(5)
         await bulk(index=PERSON_INDEX, objects=persons)
 
@@ -97,20 +97,60 @@ class TestSearchAPI:
         }
         response = await make_get_request(path, params)
         data = response.body
-        key = hash_key(PERSON_INDEX, {'path': path, 'params': params})
-        data_cache = await cache.get(key=key)
-        results = [PersonModel(**_).dict()
-                   for _ in orjson.loads(data_cache)['results']]
-        assert data_cache is not None, \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта.'
-        assert results == data['results'], \
-            'Данные обекта в elastic не совпадают с данными в кэше'
-        await cache.delete(key=key)
-        assert await cache.get(key=key) is None, \
-            'Проверьте, что при DELETE удаляете объект из кэша'
+        assert data['results'][0] == persons[2].dict(), \
+            'Проверьте, что возвращенные данные совпадают.'
+
+        persons[2].full_name = 'updated name'
+        await bulk(index=PERSON_INDEX, objects=persons)
+
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] != persons[2].dict(), \
+            'Проверьте, что данные в elastic и redis не совпадают.'
+
+        await cache.flushall()
+        params = {
+            'query': persons[2].full_name,
+            'page[number]': '1',
+            'page[size]': '10'
+        }
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] == persons[2].dict(), \
+            'Проверьте, что после очистки кэша данные обновились.'
 
     @pytest.mark.asyncio
-    async def test_03_films_search(self, make_get_request, bulk):
+    async def test_03_person_search_cache_delete(self, bulk,
+                                                 make_get_request, cache):
+        persons = PersonFactory.build_batch(5)
+        await bulk(index=PERSON_INDEX, objects=persons)
+        path = '/api/v1/persons/search'
+        params = {
+            'query': persons[2].full_name,
+            'page[number]': '1',
+            'page[size]': '10'
+        }
+
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] == persons[2].dict(), \
+            'Проверьте, что возвращенные данные совпадают.'
+
+        await bulk(index=PERSON_INDEX, objects=[persons[2]], op_type='delete')
+
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] == persons[2].dict(), \
+            'Проверьте, что после удаления из elastic, ' \
+            'данные приходят из кэша.'
+
+        await cache.flushall()
+        response = await make_get_request(path, params)
+        assert len(response.body['results']) == 0, \
+            'Проверьте, что данные очищаются из кэша.'
+
+    @pytest.mark.asyncio
+    async def test_04_films_search(self, make_get_request, bulk):
         films = FilmFactory.build_batch(10, title=factory.LazyAttribute(
             lambda x: 'Uniquetitle ' + fake.name()))
         await bulk(index=FILM_INDEX, objects=films)
@@ -150,7 +190,8 @@ class TestSearchAPI:
             'Должно быть 0 при отсетствии результатов'
 
     @pytest.mark.asyncio
-    async def test_04_films_search_cache(self, make_get_request, bulk, cache):
+    async def test_05_films_search_cache_update(self, make_get_request,
+                                                bulk, cache):
         films = FilmFactory.build_batch(5)
         await bulk(index=FILM_INDEX, objects=films)
 
@@ -162,15 +203,55 @@ class TestSearchAPI:
         }
         response = await make_get_request(path, params)
         data = response.body
-        key = hash_key(FILM_INDEX, {'path': path, 'params': params})
-        data_cache = await cache.get(key=key)
+        assert data['results'][0] == films[2].dict(), \
+            'Проверьте, что возвращенные данные совпадают.'
 
-        results = [FilmModel(**_).dict()
-                   for _ in orjson.loads(data_cache)['results']]
-        assert data_cache is not None, \
-            'Проверьте, что при запросе из кэша возвращаете данные объекта.'
-        assert results == data['results'], \
-            'Данные обекта в elastic не совпадают с данными в кэше'
-        await cache.delete(key=key)
-        assert await cache.get(key=key) is None, \
-            'Проверьте, что при DELETE удаляете объект из кэша'
+        films[2].title = 'updated title'
+        await bulk(index=FILM_INDEX, objects=films)
+
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] != films[2].dict(), \
+            'Проверьте, что данные в elastic и redis не совпадают.'
+
+        await cache.flushall()
+        params = {
+            'query': films[2].title,
+            'page[number]': '1',
+            'page[size]': '10'
+        }
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] == films[2].dict(), \
+            'Проверьте, что после очистки кэша данные обновились.'
+
+    @pytest.mark.asyncio
+    async def test_06_films_search_cache_delete(self, bulk,
+                                                make_get_request, cache):
+        films = FilmFactory.build_batch(5)
+        await bulk(index=FILM_INDEX, objects=films)
+        path = '/api/v1/films/search'
+        params = {
+            'query': films[2].title,
+            'page[number]': '1',
+            'page[size]': '10'
+        }
+
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] == films[2].dict(), \
+            'Проверьте, что возвращенные данные совпадают.'
+
+        await bulk(index=FILM_INDEX, objects=[films[2]], op_type='delete')
+
+        response = await make_get_request(path, params)
+        data = response.body
+        assert data['results'][0] == films[2].dict(), \
+            'Проверьте, что после удаления из elastic, ' \
+            'данные приходят из кэша.'
+
+        await cache.flushall()
+        response = await make_get_request(path, params)
+        print(response.body)
+        assert len(response.body['results']) == 0, \
+            'Проверьте, что данные очищаются из кэша.'

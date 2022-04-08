@@ -1,7 +1,5 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractclassmethod
 from typing import List, Optional
-
-from db.manager import DataManager
 
 from .utils import RequestParams
 
@@ -19,11 +17,7 @@ class AbstractService(ABC):
     def search_fields(self):
         raise NotImplementedError
 
-    @abstractmethod
-    async def get_serializer(self, instance):
-        pass
-
-    @abstractmethod
+    @abstractclassmethod
     async def get_query(self, params):
         pass
 
@@ -31,17 +25,9 @@ class AbstractService(ABC):
 class BaseService(AbstractService):
     search_fields: Optional[List] = []
 
-    def __init__(self, data_manager: DataManager):
-        self.request = None
-        self.paginator = None
-        self.data_manager: DataManager = data_manager
-
-    async def get_serializer(self, instance):
-        serializer_class = self.model
-        return serializer_class(**instance)
-
-    async def get_query(self, params):
+    @classmethod
+    async def get_query(cls, params):
         request_params = RequestParams()
-        query = await request_params.get_query(params, self.index,
-                                               self.search_fields)
+        query = await request_params.get_query(params, cls.index,
+                                               cls.search_fields)
         return query

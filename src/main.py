@@ -35,11 +35,9 @@ async def shutdown():
     await storage.db.close()
 
 
-# Подключаем роутер к серверу, указав префикс /v1/films
-# Теги указываем для удобства навигации по документации
-app.include_router(films.router, prefix='/api/v1/films', tags=['Фильмы'])
-app.include_router(genres.router, prefix='/api/v1/genres', tags=['Жанры'])
-app.include_router(persons.router, prefix='/api/v1/persons', tags=['Люди'])
+app.include_router(films.router, prefix='/api/v1', tags=['Фильмы'])
+app.include_router(genres.router, prefix='/api/v1', tags=['Жанры'])
+app.include_router(persons.router, prefix='/api/v1', tags=['Люди'])
 
 if __name__ == '__main__':
     uvicorn.run(

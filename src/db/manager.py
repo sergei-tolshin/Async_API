@@ -3,57 +3,47 @@ from typing import Optional
 import orjson
 from elasticsearch import NotFoundError
 
-from db.cache import get_cache, AbstractCache
-from db.storage import get_storage, AbstractStorage
+from db.cache import get_cache
+from db.storage import get_storage
 
 
 class DataManager:
-    def __init__(self, cache: AbstractCache, storage: AbstractStorage):
-        self.cache = cache
-        self.storage = storage
 
-    async def get_object(self, index: str, id: str) -> Optional[dict]:
+    @classmethod
+    async def get(cls, id: str) -> Optional[dict]:
+        storage = await get_storage()
+        cache = await get_cache()
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        key = await self.cache.get_key(index, id)
-        instance = await self.cache.get(key) or None
+        key = await cache.get_key(cls.index, id)
+        instance = await cache.get(key) or None
         if not instance:
             # Если экземпляра нет в кеше, то ищем его в базе
             try:
-                doc = await self.storage.get(index, id)
+                doc = await storage.get(cls.index, id)
                 if not doc:
                     # Если он отсутствует в базе, значит,
                     # экземпляра вообще нет в базе
                     return None
                 # Сохраняем экземпляр в кеш
                 instance = doc['_source']
-                await self.cache.set(key, orjson.dumps(instance))
+                await cache.set(key, orjson.dumps(instance))
                 return instance
             except NotFoundError:
                 return None
         return orjson.loads(instance)
 
-    async def search(self, request, index: str, query: dict):
-        params = {
-            "path": request.url.path,
-            "params": dict(request.query_params.items())
-        }
-        key = await self.cache.get_key(index, params)
-        queryset = await self.cache.get(key) or None
+    @classmethod
+    async def search(cls, **query):
+        storage = await get_storage()
+        cache = await get_cache()
+        print(query)
+        key = await cache.get_key(cls.index, query)
+        queryset = await cache.get(key) or None
         if not queryset:
             try:
-                docs = await self.storage.search(**query)
-                hits = docs['hits']['hits']
-                count: int = int(docs.get('hits').get('total').get('value', 0))
-                objects = [hit['_source'] for hit in hits]
-                data: dict = {'count': count, 'results': objects}
-                await self.cache.set(key, orjson.dumps(data))
-                return data
+                docs = await storage.search(**query)
+                await cache.set(key, orjson.dumps(docs))
+                return docs
             except NotFoundError:
                 return None
         return orjson.loads(queryset)
-
-
-async def get_data_manager() -> DataManager:
-    cache = await get_cache()
-    storage = await get_storage()
-    return DataManager(cache, storage)
